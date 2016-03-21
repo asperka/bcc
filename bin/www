@@ -1,0 +1,163 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('bcc:server');
+var http = require('http');
+var ws = require('socket.io');
+var noble = require('noble');
+
+var SBrick = require ('../controllers/sbrick');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP & Websocket server & listen on all intertfaces.
+ */
+
+var server = http.createServer(app).listen(port, function()
+{
+    console.log("Express server listening on port %d in %s mode", app.get('port'), app.get('env'));
+
+    var io = ws.listen(server, {
+        'log level': 2
+    });
+    io.on('connection', function (socket) {
+        var comid;
+
+        socket.on('set com', function (uuid) {
+            for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                if (app.locals.connections[idx].ws.comid == uuid) {
+                    app.locals.connections.splice(idx, 1);
+                    break;
+                }
+            }
+            socket.comid = uuid;
+            comid = uuid;
+            app.locals.connections.push({"ws": socket});
+
+           // noble.startScanning();
+        });
+
+        socket.on('sbrick list', function (uuid)
+        {
+            for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                if (app.locals.connections[idx].ws.comid == comid) {
+                    app.locals.connections[idx].ws.emit('all sbricks', Object.keys(SBrick.sbricks));
+                    break;
+                }
+            }
+        });
+
+        socket.on('sbrick connect', function (uuid, brick_id)
+        {
+            var s1 = SBrick.sbricks[brick_id];
+
+            for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                if (app.locals.connections[idx].ws.comid == comid) {
+                    app.locals.connections[idx].ws.emit('sbrick connected', brick_id, s1.isConnected());
+                    break;
+                }
+            }
+        });
+
+        socket.on('sbrick move', function (uuid, brick_id, port, amount)
+        {
+            var s1 = SBrick.sbricks[brick_id];
+            s1.move(port,amount);
+        });
+
+        socket.on('sbrick stop', function (uuid, brick_id, port)
+        {
+            var s1 = SBrick.sbricks[brick_id];
+            s1.stop(port);
+        });
+
+        socket.on('disconnect', function () {
+            for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                if (app.locals.connections[idx].ws.comid == comid) {
+                    app.locals.connections.splice(idx, 1);
+                    break;
+                }
+            }
+        });
+    });
+});
+server.timeout = 0; // inifinite
+http.globalAgent.maxSockets = 1000;
+
+//server;
+server.on('error', onError);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+
+app.use(function(req, res, next) {
+
+    res.locals.sendcommessage = function (msg) {
+        app.locals.connections.forEach(function (connObj) {
+            if (req.body !== undefined) {
+                if (connObj.ws.comid == req.body.comid) {
+                    connObj.ws.emit('com message', msg);
+                }
+            }
+        });
+    };
+
+    next();
+});
+
