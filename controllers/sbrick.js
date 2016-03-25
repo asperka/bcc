@@ -34,14 +34,8 @@ function SBrick (peripheral) {
         }
 
     });
-    peripheral.on('connect', function (peripheral) {
-        log_msg ('on connect: '+this.id);
-        if (SBrick.sbricks.hasOwnProperty(this.id)) {
-            SBrick.sbricks[this.id].onconnect (this);
-        }
-    });
 
-    log_msg('new: SBrick' + this.toString ());
+    log_msg('new: ' + this.toString ());
 
 }
 
@@ -54,13 +48,32 @@ SBrick.prototype.isConnected = function () {
 
 SBrick.prototype.disconnect = function () {
     clearInterval (this.updateID);
+    if (this.peripheral.state === 'connected') {
+        this.peripheral.disconnect ();
+    }
 };
 
 SBrick.prototype.connect = function (callback) {
+
     if (this.peripheral.state !== 'connected') {
-        this.peripheral.connect (callback);
+        log_msg ('connect');
+        this.peripheral.connect (function (error) {
+            noble.stopScanning();
+            log_msg ('getting char for ' + this.peripheral.id);
+            //console.log ('connected SBrick! '+ peripheral.id);
+             var suuid =['4dc591b0857c41deb5f115abda665b0c'];
+            // //var cuuid = ['489a6ae0c1ab4c9cbdb211d373c1b7fb']; // quick drive
+             var cuuid = ['02b8cbcc0e254bda8790a15f53e6010f']; // remote control commands
+             this.peripheral.discoverSomeServicesAndCharacteristics(suuid, cuuid, function (error, services, characteristics) {
+                 log_msg ('got char for ' + this.peripheral.id);
+                 this.characteristics = characteristics[0];
+                 noble.startScanning();
+                 if (callback) callback (null);
+            }.bind (this) );
+        }.bind (this));
     } else {
-        callback (null);
+        log_msg ('already connected');
+        if (callback) callback (null);
     }
 };
 
@@ -153,19 +166,6 @@ SBrick.prototype.startUpdating = function (callback) {
     }
 };
 
-SBrick.prototype.onconnect = function (peripheral) {
-    noble.stopScanning();
-    //console.log ('connected SBrick! '+ peripheral.id);
-    var suuid =['4dc591b0857c41deb5f115abda665b0c'];
-    //var cuuid = ['489a6ae0c1ab4c9cbdb211d373c1b7fb']; // quick drive
-    var cuuid = ['02b8cbcc0e254bda8790a15f53e6010f']; // remote control commands
-    peripheral.discoverSomeServicesAndCharacteristics(suuid, cuuid, function (error, services, characteristics) {
-        this.characteristics = characteristics[0];
-        this.startUpdating (function () {
-            noble.startScanning();
-        });
-    }.bind (this) );
-};
 
 noble.on('discover', function(peripheral) {
     log_msg('discover');

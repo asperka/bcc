@@ -1,8 +1,18 @@
 #!/usr/bin/env node
 
-/**
- * Module dependencies.
- */
+ function log_msg(msg)
+ {
+     console.log (msg);
+
+     app.locals.connections.forEach(function (connObj)
+     {
+         connObj.ws.emit('log message', msg);
+     });
+ }
+
+ /**
+  * Module dependencies.
+  */
 
 var app = require('../app');
 var debug = require('debug')('bcc:server');
@@ -57,7 +67,10 @@ var server = http.createServer(app).listen(port, function () {
 
         socket.on('sbrick connect', function (uuid, brick_id) {
             var s1 = SBrick.sbricks[brick_id];
+            //log_msg('sbrick connecting');
             s1.connect (function (error) {
+                //log_msg('sbrick connected');
+                s1.startUpdating ();
                 for (var idx = 0; idx < app.locals.connections.length; idx++) {
                     if (app.locals.connections[idx].ws.comid == comid) {
                         app.locals.connections[idx].ws.emit('sbrick connected', brick_id, s1.isConnected());
