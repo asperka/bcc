@@ -277,7 +277,7 @@ bcc("controls");
             pkg.zebCtx.add(pkg.menuLayer);
         });
 
-        ws.on('all sbricks', function (sbricks)
+        ws.on('all sbricks', function (sbricks, token)
         {
             if (!sbricks || sbricks.length==0)
             {
@@ -344,7 +344,11 @@ bcc("controls");
                 pkg.menuLayer.removeMe();
 
                 var selected=src.model.d[src.selectedIndex];
-                ws.emit('sbrick connect', pkg.uuid, selected);
+                if (token === 'LED') {
+                    ws.emit('sbrick led', pkg.uuid, selected);
+                } else {
+                    ws.emit('sbrick connect', pkg.uuid, selected);
+                }
             });
             infoWin.toPreferredSize();
 
@@ -502,6 +506,49 @@ bcc("controls");
         });
         row.add(CENTER,button);
         p.add(row);
+
+        var rowLed=new Panel();
+        rowLed.setLayout(new BorderLayout(1,1));
+        rowLed.extend([
+            function setLocation(x,y)
+            {
+                this.$super(x+1,y-78);
+            }
+        ]);
+        p.add(rowLed);
+        p.extend([
+            function setLocation(x,y)
+            {
+                this.$super(x-1,y-1);
+            }
+        ]);
+
+        var iLed = new ImagePan('/images/sbrick.png');
+        iLed.setPreferredSize(30,30);
+
+        var buttonLed = new Button(iLed);
+
+        buttonLed.setPreferredSize(36,36);
+        buttonLed.tooltip=pkg.createTip('Test sBricks');
+        buttonLed.cursorType = Cursor.HAND;
+
+        buttonLed.setCanHaveFocus(false);
+
+        buttonLed.setBackground(new ViewSet({
+            "over": "#E0E4EA",
+            "pressed.out": "#E0E4EA",
+            "pressed.over": "#D27272",
+            "out": "#fff",
+            "disabled" : "#ddd"
+        }));
+
+        //button.mouseMoved = function(e) {pkg.zebCtx.root.vrp();};
+
+        buttonLed.bind(function (src) {
+            ws.emit('sbrick list', pkg.uuid, 'LED');
+        });
+        rowLed.add(CENTER,buttonLed);
+        p.add(rowLed);
 
         pkg.touchPanel.add(LEFT,p);
 

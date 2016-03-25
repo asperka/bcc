@@ -56,10 +56,10 @@ var server = http.createServer(app).listen(port, function () {
             // noble.startScanning();
         });
 
-        socket.on('sbrick list', function (uuid) {
+        socket.on('sbrick list', function (uuid, token) {
             for (var idx = 0; idx < app.locals.connections.length; idx++) {
                 if (app.locals.connections[idx].ws.comid == comid) {
-                    app.locals.connections[idx].ws.emit('all sbricks', Object.keys(SBrick.sbricks));
+                    app.locals.connections[idx].ws.emit('all sbricks', Object.keys(SBrick.sbricks), token);
                     break;
                 }
             }
@@ -78,6 +78,12 @@ var server = http.createServer(app).listen(port, function () {
                     }
                 }
             });
+        });
+
+        socket.on('sbrick led', function (uuid, brick_id) {
+            var s1 = SBrick.sbricks[brick_id];
+            //log_msg('sbrick led');
+            s1.blinkLED ();
         });
 
         socket.on('sbrick move', function (uuid, brick_id, port, amount) {

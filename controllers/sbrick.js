@@ -166,6 +166,30 @@ SBrick.prototype.startUpdating = function (callback) {
     }
 };
 
+SBrick.prototype.blinkLED = function (timeout) {
+    if (!timeout) {
+        timeout = 1000;
+    }
+    if (this.isConnected ()){
+        var sendbuf = new Buffer([0x01, 0x04, 0x00, 0xff]);
+        this.characteristics.write(sendbuf);
+        sendbuf[3] = 0x00;
+        setTimeout (function () {
+            this.characteristics.write(sendbuf);
+        }.bind (this), timeout);
+    } else {
+        this.connect (function () {
+            var sendbuf = new Buffer([0x01, 0x04, 0x00, 0xff]);
+            this.characteristics.write(sendbuf);
+            sendbuf[3] = 0x00;
+            setTimeout (function () {
+                this.characteristics.write(sendbuf);
+                this.disconnect ();
+            }.bind (this), timeout);
+        }.bind(this));
+    }
+};
+
 
 noble.on('discover', function(peripheral) {
     log_msg('discover');
