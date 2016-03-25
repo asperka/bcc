@@ -57,13 +57,14 @@ var server = http.createServer(app).listen(port, function () {
 
         socket.on('sbrick connect', function (uuid, brick_id) {
             var s1 = SBrick.sbricks[brick_id];
-
-            for (var idx = 0; idx < app.locals.connections.length; idx++) {
-                if (app.locals.connections[idx].ws.comid == comid) {
-                    app.locals.connections[idx].ws.emit('sbrick connected', brick_id, s1.isConnected());
-                    break;
+            s1.connect (function (error) {
+                for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                    if (app.locals.connections[idx].ws.comid == comid) {
+                        app.locals.connections[idx].ws.emit('sbrick connected', brick_id, s1.isConnected());
+                        break;
+                    }
                 }
-            }
+            });
         });
 
         socket.on('sbrick move', function (uuid, brick_id, port, amount) {
@@ -155,4 +156,3 @@ app.use(function (req, res, next) {
 
     next();
 });
-

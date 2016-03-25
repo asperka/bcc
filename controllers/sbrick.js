@@ -25,6 +25,7 @@ function SBrick (peripheral) {
     this.HWMinor = 0;
     this.FWMajor = 0;
     this.FWMinor = 0;
+    this.checkfirmware ();
 
     peripheral.on('disconnect', function (peripheral) {
         log_msg ('disconnect: '+this.id);
@@ -34,13 +35,13 @@ function SBrick (peripheral) {
 
     });
     peripheral.on('connect', function (peripheral) {
-        log_msg ('connect: '+this.id);
+        log_msg ('on connect: '+this.id);
         if (SBrick.sbricks.hasOwnProperty(this.id)) {
-            SBrick.sbricks[this.id].connect (this);
+            SBrick.sbricks[this.id].onconnect (this);
         }
     });
 
-    log_msg('new: SBrick');
+    log_msg('new: SBrick' + this.toString ());
 
 }
 
@@ -53,6 +54,14 @@ SBrick.prototype.isConnected = function () {
 
 SBrick.prototype.disconnect = function () {
     clearInterval (this.updateID);
+};
+
+SBrick.prototype.connect = function (callback) {
+    if (this.peripheral.state !== 'connected') {
+        this.peripheral.connect (callback);
+    } else {
+        callback (null);
+    }
 };
 
 SBrick.prototype.toString = function () {
@@ -100,11 +109,11 @@ SBrick.prototype.checkfirmware = function () {
 };
 
 SBrick.prototype.updatetask = function () {
+    var sent = false;
     for (var i=0; i<4; i++)
     {
-        var sent = false;
         var diff = this.targets[i] - this.current[i];
-        if (diff != 0 || this.forceupdate[i])
+        if (diff !== 0 || this.forceupdate[i])
         {
             if (diff > this.acc[i]) {
                 diff = this.acc[i];
@@ -138,15 +147,14 @@ SBrick.prototype.startUpdating = function (callback) {
     this.forceupdate = [false, false, false, false];
 
     this.updateID = setInterval ( this.updatetask.bind(this), 250);
-    log_msg('connected: ' + this);
+    log_msg('startUpdating: ' + this);
     if (callback) {
         callback ();
     }
 };
 
-SBrick.prototype.connect = function (peripheral) {
+SBrick.prototype.onconnect = function (peripheral) {
     noble.stopScanning();
-    this.checkfirmware ();
     //console.log ('connected SBrick! '+ peripheral.id);
     var suuid =['4dc591b0857c41deb5f115abda665b0c'];
     //var cuuid = ['489a6ae0c1ab4c9cbdb211d373c1b7fb']; // quick drive
@@ -169,7 +177,6 @@ noble.on('discover', function(peripheral) {
                     s = new SBrick(peripheral);
                     SBrick.sbricks [peripheral.id]=s;
                 }
-                peripheral.connect ();
             }
         }
     }
@@ -185,5 +192,3 @@ noble.on('stateChange', function(state) {
         noble.stopScanning();
     }
 });
-
-
