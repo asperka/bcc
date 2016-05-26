@@ -209,10 +209,10 @@ noble.on('discover', function(peripheral) {
 
 noble.on('stateChange', function(state) {
     if (state === 'poweredOn') {
-        log_msg('startScanning');
+        log_msg('SBrick startScanning');
         noble.startScanning();
     } else {
-        log_msg('stopScanning');
+        log_msg('SBrick stopScanning');
         noble.stopScanning();
     }
 });

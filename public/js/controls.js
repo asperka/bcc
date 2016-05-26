@@ -134,7 +134,7 @@ bcc("controls");
                 errorModal.show();
                 return;
             }
-            var list = new List(['A','B','C','D'], true);
+            var list = new List(['Channel A', 'Channel B', 'Channel C', 'Channel D', 'Blink LED'], true);
 
             list.setViewProvider(new zebra.Dummy([
                 function getView(list, item, index)
@@ -187,10 +187,16 @@ bcc("controls");
                 pkg.menuLayer.removeMe();
 
                 var selected=src.model.d[src.selectedIndex];
+
+                if (selected == 'Blink LED') {
+                    ws.emit('sbrick led', pkg.uuid, brick_id);
+                    return;
+                }
+
                 var port=0;
-                if (selected=='B') port=1;
-                else if (selected=='C') port=2;
-                else if (selected=='D') port=3;
+                if (selected == 'Channel B') port = 1;
+                else if (selected == 'Channel C') port = 2;
+                else if (selected == 'Channel D') port = 3;
 
                 var slider=new pkg.Slider();
                 slider.orient = VERTICAL;
@@ -344,11 +350,8 @@ bcc("controls");
                 pkg.menuLayer.removeMe();
 
                 var selected=src.model.d[src.selectedIndex];
-                if (token === 'LED') {
-                    ws.emit('sbrick led', pkg.uuid, selected);
-                } else {
-                    ws.emit('sbrick connect', pkg.uuid, selected);
-                }
+                ws.emit('sbrick connect', pkg.uuid, selected);
+
             });
             infoWin.toPreferredSize();
 
@@ -361,102 +364,305 @@ bcc("controls");
         });
 
 
-        var pan = zebra.Class(Panel, Composite,[
-            function $prototype() {
-                this.isMoveEnabled = true;
-                this.status = "shown";
-                this.timer = null;
+        ws.on('btbrick connected', function (brick_id, connected) {
+            if (!connected) {
+                var errorModal = new pkg.Modal("BTBrick connection");
+                var tmpPanel = new Panel(new BorderLayout());
+                tmpPanel.add(TOP, new Label(""));
+                tmpPanel.add(CENTER, new Label("            BTBrick is no longer connected!"));
+                errorModal.setZebraContent(tmpPanel);
+                errorModal.setLocation((pkg.touchPanel.width / 2) - 150, 50);
+                errorModal.setSize(300, 150);
+                errorModal.show();
+                return;
+            }
+            var list = new List(['RED', 'BLUE'], true);
 
-                /*
-                this.mouseDragStarted = function(e){
-                    if (!this.isMoveEnabled) return;
+            list.setViewProvider(new zebra.Dummy([
+                function getView(list, item, index) {
+                    var render;
 
-                    this.px = e.absX;
-                    this.py = e.absY;
-                };
+                    if (item == '-') {
+                        render = new Render();
+                        render.paint = function (g, x, y, w, h, c) {
+                            g.setColor("#AAAAAA");
+                            g.drawLine(0, y, list.width, y);
+                        };
 
-
-                this.mouseDragged = function(e){
-                    if (!this.isMoveEnabled) return;
-
-                    var dy = (e.absY - this.py),
-                        dx = (e.absX - this.px);
-
-                    this.setLocation(this.x + dx, this.y + dy);
-
-                    this.px = e.absX;
-                    this.py = e.absY;
-
-                    if (zebra.isIE) pkg.zebCtx.root.vrp();
-                };
-                */
-
-            },
-
-            function catchInput(kid) {
-                return this.state == "hiding";
-            },
-
-            function mouseClicked(e) {
-                if (this.timer == null) {
-                    if (this.state == "hiding") {
-
-                        this.state = "shown";
-                        this.isMoveEnabled = true;
-                        this.vrp();
+                        return render;
                     }
                     else {
-                        var $this = this;
-                        this.state   = "hiding";
-                        this.dt      = 4;
-                        this.counter = 0;
-                        this.isMoveEnabled = false;
+                        while (item.length < 20) item += ' ';
+                        render = new TextRender(item);
+                        render.setColor("rgb(34, 34 ,34)");
+                        render.setFont(new Font("14px Verdana, Arial, sans-serif"));
+                        return render;
+                    }
 
-                        var count=20;
+                }
+            ]));
 
-                        this.timer =  setInterval(function() {
-                            var topDiff=0;//100+window.pageYOffset;
+            list.isItemSelectable = function (i) {
+                return list.model.d[i] != '-';
+            };
 
-                            if (-$this.x  >= $this.width) {
-                                clearInterval($this.timer);
-                                $this.timer = null;
-                                $this.setLocation(-$this.width + 8, topDiff);
+            var triggered = false;
+            var infoWin = new Panel({
+                border: new Border("#CCCCCC", 1, 3),
+                layout: new BorderLayout()
+            });
+            infoWin.setPadding(0);
+            infoWin.defaultWidth = -1;
+            infoWin.$this = this;
+            infoWin.setBackground("white");
+            infoWin.border.width = 5;
+            infoWin.border.gap = 3;
+            infoWin.add(CENTER, list);
+            list.bind(function (src, prev) {
+                if (triggered) return;
+                triggered = true;
+
+                infoWin.removeMe();
+                pkg.menuLayer.removeMe();
+
+                var selected = src.model.d[src.selectedIndex];
+                var port = 0;
+                if (selected == 'BLUE') port = 1;
+
+                var slider = new pkg.Slider();
+                slider.orient = VERTICAL;
+                slider.max = 14;
+                slider.value = 7;
+                slider.brick_id = brick_id;
+                slider.port = port;
+
+                var isReset = false;
+
+
+                slider.bind(function (slider, prev) {
+                    if (!isReset) {
+                        var value = slider.getValue();
+
+                        if (prev == value) return;
+
+                        if (value > 7 && prev <= 7) {
+                            ws.emit('btbrick fullforward', pkg.uuid, slider.brick_id, slider.port);
+                            while (value < 14) {
+                                setTimeout(function () {
+                                    ws.emit('btbrick powerdown', pkg.uuid, slider.brick_id, slider.port);
+                                }, 5);
+                                value++;
+                            }
+                            return;
+                        }
+
+                        if (value < 7 && prev >= 7) {
+                            ws.emit('btbrick fullbackward', pkg.uuid, slider.brick_id, slider.port);
+                            while (value > 0) {
+                                setTimeout(function () {
+                                    ws.emit('btbrick powerup', pkg.uuid, slider.brick_id, slider.port);
+                                }, 5);
+                                value--;
+                            }
+                            return;
+                        }
+
+                        if (value == 7) {
+                            ws.emit('btbrick stop', pkg.uuid, slider.brick_id, slider.port);
+                            return;
+                        }
+                        if (value < 7) {
+                            if (value > prev) {
+                                while (value > prev)
+                                {
+                                    setTimeout(function () {
+                                        ws.emit('btbrick powerup', pkg.uuid, slider.brick_id, slider.port);
+                                    }, 5);
+                                    value--;
+                                }
                             }
                             else {
-                                if ($this.y>topDiff)
+                                while (value < prev)
                                 {
-                                    var diff = $this.y-topDiff;
-                                    diff /=count;
-                                    diff *=(count-$this.counter);
-                                    $this.y=topDiff+diff;
-                                    pkg.zebCtx.root.vrp();
-                                    //root.setBackground("white");//new CellsView()); // force repaint
+                                    setTimeout(function () {
+                                        ws.emit('btbrick powerdown', pkg.uuid, slider.brick_id, slider.port);
+                                    }, 5);
+                                    value++;
                                 }
-                                else if (topDiff > $this.y)
-                                {
-                                    var diff =topDiff-$this.y;
-                                    diff /=count;
-                                    diff *=(count-$this.counter);
-                                    $this.y=topDiff-diff;
-                                    pkg.zebCtx.root.vrp();
-                                    //root.setBackground("white");//new CellsView()); // force repaint
-                                }
-
-                                $this.setLocation($this.x - $this.dt, $this.y);
-                                $this.counter++;
-                                if ($this.counter % 5 === 0) $this.dt = $this.dt*2;
                             }
-                        }, count);
+                            return;
+                        }
+
+                        if (value > 7) {
+                            if (value > prev) {
+                                while (value > prev) {
+                                    setTimeout(function () {
+                                        ws.emit('btbrick powerup', pkg.uuid, slider.brick_id, slider.port);
+                                    }, 5);
+                                    value--;
+                                }
+                            }
+                            else {
+                                while (value < prev) {
+                                    setTimeout(function () {
+                                        ws.emit('btbrick powerdown', pkg.uuid, slider.brick_id, slider.port);
+                                    }, 5);
+                                    value++;
+                                }
+                            }
+                            return;
+                        }
+
                     }
-                }
-            },
+                    isReset = false;
+                });
 
-            function mouseMoved(e) {
-                if (zebra.isIE) pkg.zebCtx.root.vrp();
+                var slider_thumb = new Image();
+                slider_thumb.src = '/images/slider_thumb_vert.png';
+                slider_thumb.onload = function () {
+                    var slider_thumb_pressed = new Image();
+                    slider_thumb_pressed.src = '/images/slider_thumb_pressed_vert.png';
+                    slider_thumb_pressed.onload = function () {
+
+                        slider.extend([
+                            function mousePressed(e) {
+                                this.$super(e);
+
+                                slider.views['bundle'] = new Picture(slider_thumb_pressed);
+                                slider.highlighted = true;
+                                slider.vrp();
+                            },
+                            function mouseReleased(e) {
+                                slider.views['bundle'] = new Picture(slider_thumb);
+                                slider.highlighted = false;
+                                slider.vrp();
+                            },
+                            function mouseDragEnded(e) {
+                                this.$super(e);
+                            }
+                        ]);
+
+                        slider.views['bundle'] = new Picture(slider_thumb);
+
+
+                        var reset = new ActionButton("STOP");
+                        reset.extend([
+                            function setSize(w, h) {
+                                this.$super(50, 30);
+                            },
+                            function setLocation(x, y) {
+                                this.$super(x + 15, y);
+                            }
+                        ]);
+                        reset.bind(function (src) {
+                            isReset = true;
+                            ws.emit('btbrick stop', pkg.uuid, slider.brick_id, slider.port);
+                            slider.setValue(7);
+                        });
+
+                        var holder = new Panel(new BorderLayout());
+                        holder.extend([
+                            function setSize(w, h) {
+                                this.$super(80, 280);
+                            }
+                        ]);
+
+                        holder.add(CENTER, slider);
+                        holder.add(BOTTOM, reset);
+
+
+                        workspace.add(holder);
+                    };
+                };
+
+            });
+            infoWin.toPreferredSize();
+
+            // screen centered
+            infoWin.setLocation((pkg.touchPanel.width / 2) - 100, (pkg.touchPanel.height / 2) - 100);
+
+
+            pkg.menuLayer.add(infoWin);
+            pkg.zebCtx.add(pkg.menuLayer);
+        });
+
+        ws.on('all btbricks', function (btbricks, token) {
+            if (!btbricks || btbricks.length == 0) {
+                var errorModal = new pkg.Modal("BTBrick detection");
+                var tmpPanel = new Panel(new BorderLayout());
+                tmpPanel.add(TOP, new Label(""));
+                tmpPanel.add(CENTER, new Label("                      No BTBricks Found!"));
+                errorModal.setZebraContent(tmpPanel);
+                errorModal.setLocation((pkg.touchPanel.width / 2) - 150, 50);
+                errorModal.setSize(300, 150);
+                errorModal.show();
+                return;
             }
-        ]);
+            var list = new List(btbricks, true);
 
-        var p = new pan();
+            list.setViewProvider(new zebra.Dummy([
+                function getView(list, item, index) {
+                    var render;
+
+                    if (item == '-') {
+                        render = new Render();
+                        render.paint = function (g, x, y, w, h, c) {
+                            g.setColor("#AAAAAA");
+                            g.drawLine(0, y, list.width, y);
+                        };
+
+                        return render;
+                    }
+                    else {
+                        while (item.length < 20) item += ' ';
+                        render = new TextRender(item);
+                        render.setColor("rgb(34, 34 ,34)");
+                        render.setFont(new Font("14px Verdana, Arial, sans-serif"));
+                        return render;
+                    }
+
+                }
+            ]));
+
+            list.isItemSelectable = function (i) {
+                return list.model.d[i] != '-';
+            };
+
+            var triggered = false;
+            var infoWin = new Panel({
+                border: new Border("#CCCCCC", 1, 3),
+                layout: new BorderLayout()
+            });
+            infoWin.setPadding(0);
+            infoWin.defaultWidth = -1;
+            infoWin.$this = this;
+            infoWin.setBackground("white");
+            infoWin.border.width = 5;
+            infoWin.border.gap = 3;
+            infoWin.add(CENTER, list);
+            list.bind(function (src, prev) {
+                if (triggered) return;
+                triggered = true;
+
+                infoWin.removeMe();
+                pkg.menuLayer.removeMe();
+
+                var selected = src.model.d[src.selectedIndex];
+                ws.emit('btbrick connect', pkg.uuid, selected);
+
+            });
+            infoWin.toPreferredSize();
+
+            // screen centered
+            infoWin.setLocation((pkg.touchPanel.width / 2) - 100, (pkg.touchPanel.height / 2) - 100);
+
+
+            pkg.menuLayer.add(infoWin);
+            pkg.zebCtx.add(pkg.menuLayer);
+        });
+
+
+        var p = new Panel();
         p.setPreferredSize(41, window.innerHeight);
         p.setBorder("plain");
         p.cursorType = Cursor.HAND;
@@ -507,6 +713,7 @@ bcc("controls");
         row.add(CENTER,button);
         p.add(row);
 
+
         var rowLed=new Panel();
         rowLed.setLayout(new BorderLayout(1,1));
         rowLed.extend([
@@ -549,6 +756,47 @@ bcc("controls");
         });
         rowLed.add(CENTER,buttonLed);
         p.add(rowLed);
+
+
+        row = new Panel();
+        row.setLayout(new BorderLayout(1, 1));
+        row.extend([
+            function setLocation(x, y) {
+                this.$super(x + 1, y - 118);
+            }
+        ]);
+        p.add(row);
+        p.extend([
+            function setLocation(x, y) {
+                this.$super(x - 1, y - 1);
+            }
+        ]);
+
+        i = new ImagePan('/images/btbrick.png');
+        i.setPreferredSize(30, 30);
+        var button = new Button(i);
+
+        button.setPreferredSize(36, 36);
+        button.tooltip = pkg.createTip('List BTBricks');
+        button.cursorType = Cursor.HAND;
+
+        button.setCanHaveFocus(false);
+
+        button.setBackground(new ViewSet({
+            "over": "#E0E4EA",
+            "pressed.out": "#E0E4EA",
+            "pressed.over": "#D27272",
+            "out": "#fff",
+            "disabled": "#ddd"
+        }));
+
+        //button.mouseMoved = function(e) {pkg.zebCtx.root.vrp();};
+
+        button.bind(function (src) {
+            ws.emit('btbrick list', pkg.uuid);
+        });
+        row.add(CENTER, button);
+        p.add(row);
 
         pkg.touchPanel.add(LEFT,p);
 

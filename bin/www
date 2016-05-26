@@ -21,6 +21,8 @@ var ws = require('socket.io');
 var noble = require('noble');
 
 var SBrick = require('../controllers/sbrick');
+var BTBrick = require('../controllers/brickster');
+BTBrick.scan();
 
 /**
  * Get port from environment and store in Express.
@@ -93,6 +95,62 @@ var server = http.createServer(app).listen(port, function () {
 
         socket.on('sbrick stop', function (uuid, brick_id, port) {
             var s1 = SBrick.sbricks[brick_id];
+            if (s1 !== undefined) s1.stop(port);
+        });
+
+
+        socket.on('btbrick list', function (uuid, token) {
+            for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                if (app.locals.connections[idx].ws.comid == comid) {
+                    app.locals.connections[idx].ws.emit('all btbricks', Object.keys(BTBrick.btbricks), token);
+                    break;
+                }
+            }
+        });
+
+        socket.on('btbrick connect', function (uuid, brick_id) {
+            var s1 = BTBrick.btbricks[brick_id];
+            //log_msg('btbrick connecting');
+            if (s1 !== undefined) {
+                s1.connect(function (error) {
+                    //log_msg('btbrick connected');
+                    for (var idx = 0; idx < app.locals.connections.length; idx++) {
+                        if (app.locals.connections[idx].ws.comid == comid) {
+                            app.locals.connections[idx].ws.emit('btbrick connected', brick_id, s1.isConnected());
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+
+        socket.on('btbrick powerup', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
+            if (s1 !== undefined) s1.powerUp(port);
+        });
+
+        socket.on('btbrick powerdown', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
+            if (s1 !== undefined) s1.powerDown(port);
+        });
+
+        socket.on('btbrick fullforward', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
+            if (s1 !== undefined) s1.fullForward(port);
+        });
+
+        socket.on('btbrick fullbackward', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
+            if (s1 !== undefined) s1.fullBackward(port);
+        });
+
+        socket.on('btbrick flip', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
+            if (s1 !== undefined) s1.flip(port);
+        });
+
+        socket.on('btbrick stop', function (uuid, brick_id, port) {
+            var s1 = BTBrick.btbricks[brick_id];
             if (s1 !== undefined) s1.stop(port);
         });
 
