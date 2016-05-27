@@ -16,10 +16,6 @@ function log_msg(msg)
 function SBrick (peripheral) {
     this.peripheral = peripheral;
     this.sendbuf = new Buffer([0x01, 0x00, 0x00, 0x00]);
-    this.targets = [0,0,0,0];
-    this.current = [0,0,0,0];
-    this.acc = [10,10,10,10];
-    this.forceupdate = [false, false, false, false];
     this.maxoutput = 254;
     this.HWMajor = 0;
     this.HWMinor = 0;
@@ -92,14 +88,19 @@ SBrick.prototype.move = function (channel, target) {
         target = -this.maxoutput;
     }
     log_msg('Moving channel '+channel+' to '+target);
-    this.targets [channel] = target;
+    this.sendbuf[1] = channel;
+    if (target > 0) {
+        this.sendbuf[2] = 1;
+    } else {
+        this.sendbuf[2] = 0;
+    }
+    this.sendbuf[3] = Math.abs(target);
+    this.characteristics.write(this.sendbuf);
 };
 
 SBrick.prototype.stop = function  (channel) {
-    this.forceupdate [channel] = true;
-    this.targets[channel] = 0;
-    this.current[channel] = 0;
     log_msg('Stopping channel '+channel);
+    this.move (channel, 0);
 };
 
 SBrick.prototype.checkfirmware = function () {
@@ -122,42 +123,12 @@ SBrick.prototype.checkfirmware = function () {
 };
 
 SBrick.prototype.updatetask = function () {
-    var sent = false;
-    for (var i=0; i<4; i++)
-    {
-        var diff = this.targets[i] - this.current[i];
-        if (diff !== 0 || this.forceupdate[i])
-        {
-            if (diff > this.acc[i]) {
-                diff = this.acc[i];
-            } else if (diff < -this.acc[i]) {
-                diff = -this.acc[i];
-            }
-            this.current[i] += diff;
-            this.sendbuf[1] = i;
-            if (this.current[i] > 0) {
-                this.sendbuf[2] = 1;
-            } else {
-                this.sendbuf[2] = 0;
-            }
-            this.sendbuf[3] = Math.abs(this.current[i]);
-            this.characteristics.write(this.sendbuf);
-            sent = true;
-            this.forceupdate[i] = false;
-        }
-    }
-    if (!sent)
-    {
-        this.characteristics.write(this.sendbuf);
-    }
+    this.characteristics.write(this.sendbuf);
 };
 
 SBrick.prototype.startUpdating = function (callback) {
 
     this.sendbuf = new Buffer([0x01, 0x00, 0x00, 0x00]);
-    this.targets = [0,0,0,0];
-    this.current = [0,0,0,0];
-    this.forceupdate = [false, false, false, false];
 
     this.updateID = setInterval ( this.updatetask.bind(this), 250);
     log_msg('startUpdating: ' + this);
