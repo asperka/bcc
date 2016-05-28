@@ -22,6 +22,8 @@ var noble = require('noble');
 
 var SBrick = require('../controllers/sbrick');
 var BTBrick = require('../controllers/brickster');
+var ESP8266 = require('../controllers/ESP8266');
+
 BTBrick.scan();
 
 /**
@@ -72,7 +74,9 @@ var server = http.createServer(app).listen(port, function () {
             //log_msg('sbrick connecting');
             s1.connect (function (error) {
                 //log_msg('sbrick connected');
-                s1.startUpdating ();
+                if (s1.startUpdating) {
+                    s1.startUpdating ();
+                }
                 for (var idx = 0; idx < app.locals.connections.length; idx++) {
                     if (app.locals.connections[idx].ws.comid == comid) {
                         app.locals.connections[idx].ws.emit('sbrick connected', brick_id, s1.isConnected());

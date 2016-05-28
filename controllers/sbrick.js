@@ -87,7 +87,7 @@ SBrick.prototype.move = function (channel, target) {
     if (target<-this.maxoutput) {
         target = -this.maxoutput;
     }
-    log_msg('Moving channel '+channel+' to '+target);
+    //log_msg('Moving channel '+channel+' to '+target);
     this.sendbuf[1] = channel;
     if (target > 0) {
         this.sendbuf[2] = 1;
@@ -99,7 +99,7 @@ SBrick.prototype.move = function (channel, target) {
 };
 
 SBrick.prototype.stop = function  (channel) {
-    log_msg('Stopping channel '+channel);
+    //log_msg('Stopping channel '+channel);
     this.move (channel, 0);
 };
 

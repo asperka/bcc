@@ -6,15 +6,17 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "bluetooth-serial-port": "*",
     "body-parser": "~1.13.2",
     "cookie-parser": "~1.3.5",
     "debug": "~2.2.0",
     "express": "~4.13.1",
     "jade": "~1.11.0",
     "morgan": "~1.6.1",
-    "serve-favicon": "~2.3.0",
+    "mosca": "^1.3.0",
+    "mqtt": "^1.10.0",
     "noble": "~1.3.0",
-    "socket.io": "~1.4.5",
-    "bluetooth-serial-port": "*"
+    "serve-favicon": "~2.3.0",
+    "socket.io": "~1.4.5"
   }
 }
