@@ -30,8 +30,8 @@ http://arduino.esp8266.com/stable/package_esp8266com_index.json
 
 // Update these with values suitable for your network.
 
-const char* ssid = "NinjagoCity";
-const char* password = "182208035045";
+const char* ssid = "...";
+const char* password = "...";
 const char* mqtt_server = "192.168.1.106";
 
 uint8_t MAC_array[6];
