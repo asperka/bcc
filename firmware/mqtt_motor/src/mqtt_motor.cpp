@@ -28,11 +28,12 @@ http://arduino.esp8266.com/stable/package_esp8266com_index.json
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-// Update these with values suitable for your network.
+#include "NetworkSettings.h"
+// the file NetworkSettings.h must define 3 constants:
+// const char* ssid = "...";
+// const char* password = "...";
+// const char* mqtt_server = "192.168.1.106";
 
-const char* ssid = "...";
-const char* password = "...";
-const char* mqtt_server = "192.168.1.106";
 
 uint8_t MAC_array[6];
 char MAC_char[18];
